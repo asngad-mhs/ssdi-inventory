@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "User profile and role information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the user" },
+        "email": { "type": "string", "format": "email", "description": "Email address" },
+        "role": { "type": "string", "enum": ["admin", "staff"], "description": "User role" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["name", "email", "role", "createdAt"]
+    },
+    "warehouse": {
+      "title": "Warehouse",
+      "description": "Storage location details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Warehouse name" },
+        "location": { "type": "string", "description": "Physical location" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "createdAt"]
+    },
+    "category": {
+      "title": "Category",
+      "description": "Product categorization",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Category name" },
+        "description": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "product": {
+      "title": "Product",
+      "description": "Inventory item details",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string", "description": "Stock Keeping Unit" },
+        "name": { "type": "string", "description": "Product name" },
+        "description": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "warehouseId": { "type": "string" },
+        "stock": { "type": "number", "description": "Current stock quantity" },
+        "lowStockThreshold": { "type": "number", "description": "Min stock alert level" },
+        "unit": { "type": "string", "description": "Measurement unit (pcs, box, etc)" },
+        "lastUpdated": { "type": "string", "format": "date-time" },
+        "price": { "type": "number", "description": "Item unit price" }
+      },
+      "required": ["sku", "name", "stock", "warehouseId", "lastUpdated"]
+    },
+    "transaction": {
+      "title": "Transaction",
+      "description": "Stock movement record",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "type": { "type": "string", "enum": ["IN", "OUT", "ADJUST"] },
+        "quantity": { "type": "number" },
+        "warehouseId": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "note": { "type": "string" }
+      },
+      "required": ["productId", "type", "quantity", "userId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "User profiles"
+    },
+    "/warehouses/{warehouseId}": {
+      "schema": "warehouse",
+      "description": "Warehouses list"
+    },
+    "/categories/{categoryId}": {
+      "schema": "category",
+      "description": "Product categories"
+    },
+    "/products/{productId}": {
+      "schema": "product",
+      "description": "Inventory items"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "transaction",
+      "description": "Stock movement logs"
+    }
+  }
+}

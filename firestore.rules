@@ -1,0 +1,118 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Global Denial ---
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'asngad@mhs.unugha.ac.id' || 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      ); 
+    }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'role', 'createdAt']) &&
+             data.keys().size() == 4 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['admin', 'staff'] &&
+             data.createdAt == request.time;
+    }
+
+    function isValidWarehouse(data) {
+      return data.keys().hasAll(['name', 'location', 'createdAt']) &&
+             data.keys().size() == 3 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.location is string && data.location.size() <= 200 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'description']) &&
+             data.keys().size() == 2 &&
+             data.name is string && data.name.size() <= 50 &&
+             data.description is string && data.description.size() <= 200;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['sku', 'name', 'stock', 'warehouseId', 'lastUpdated']) &&
+             data.keys().size() >= 5 &&
+             data.sku is string && data.sku.size() <= 50 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.stock is number && data.stock >= 0 &&
+             isValidId(data.warehouseId) &&
+             data.lastUpdated == request.time;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['productId', 'type', 'quantity', 'userId', 'timestamp']) &&
+             data.keys().size() >= 5 &&
+             isValidId(data.productId) &&
+             data.type in ['IN', 'OUT', 'ADJUST'] &&
+             data.quantity is number && data.quantity > 0 &&
+             data.userId == request.auth.uid &&
+             data.timestamp == request.time;
+    }
+
+    // --- Collection Routes ---
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming()) && incoming().role == 'staff';
+      allow update: if (isOwner(userId) || isAdmin()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'email'])
+      );
+    }
+
+    match /warehouses/{warehouseId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidWarehouse(incoming());
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidCategory(incoming());
+    }
+
+    match /products/{productId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidProduct(incoming());
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          // Action: Stock Adjustment via Staff
+          incoming().diff(existing()).affectedKeys().hasOnly(['stock', 'lastUpdated']) &&
+          incoming().stock >= 0 &&
+          incoming().lastUpdated == request.time
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidTransaction(incoming());
+      // Transactions are immutable logs
+      allow update, delete: if false;
+    }
+
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only manageable via console or manual intervention
+    }
+  }
+}

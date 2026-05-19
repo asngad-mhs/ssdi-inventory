@@ -1,0 +1,6 @@
+{
+  "name": "SSDI Inventory",
+  "description": "Sistem Manajemen Inventaris SSDI: Pengelolaan stok real-time, laporan akurat, integrasi POS/ERP, dan analisis tren cerdas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
